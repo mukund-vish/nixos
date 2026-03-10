@@ -17,9 +17,9 @@
   home.sessionPath = [ "$HOME/.local/bin" ];
 
   home.packages = with pkgs; [
-    kitty
+#     kitty
     waybar
-    wofi
+    rofi
     mako
     swww
     hyprlock
@@ -30,44 +30,54 @@
     pavucontrol
     networkmanagerapplet
     nerd-fonts.jetbrains-mono
+    papirus-icon-theme
     swayosd
     pamixer
     eww
     playerctl
   ];
 
-  # ── Wofi WiFi picker script ───────────────────────────────────────────
-  home.file.".local/bin/wofi-wifi" = {
+  # ── GTK theme ─────────────────────────────────────────────────────────
+  gtk = {
+    enable = true;
+    font = {
+      name = "JetBrainsMono Nerd Font";
+      size = 11;
+    };
+    theme = {
+      name = "catppuccin-mocha-blue-standard";
+      package = pkgs.catppuccin-gtk.override {
+        accents = [ "blue" ];
+        variant = "mocha";
+      };
+    };
+    iconTheme = {
+      name = "Papirus-Dark";
+      package = pkgs.papirus-icon-theme;
+    };
+  };
+
+  # ── Rofi WiFi picker script ───────────────────────────────────────────
+  home.file.".local/bin/rofi-wifi" = {
     executable = true;
     text = ''
       #!/usr/bin/env bash
-
-      # Scan for networks
       nmcli dev wifi rescan 2>/dev/null
       sleep 1
-
-      # Get list of available networks
       networks=$(nmcli -t -f ssid,signal,security dev wifi list 2>/dev/null \
         | sort -t: -k2 -rn \
         | awk -F: '!seen[$1]++ && $1!="" {
             icon = ($3 ~ /WPA|WEP/) ? "󰤪 " : "󰤨 "
             printf "%s%s (%s%%)\n", icon, $1, $2
           }')
-
-      chosen=$(echo "$networks" | wofi --dmenu --prompt "WiFi" --insensitive)
+      chosen=$(echo "$networks" | rofi -dmenu -p "WiFi" -i)
       [ -z "$chosen" ] && exit
-
-      # Extract SSID (strip leading icon+space and trailing signal)
       ssid=$(echo "$chosen" | sed 's/^[^ ]* //' | sed 's/ ([0-9]*%)$//')
-
-      # Check if already saved
       saved=$(nmcli -t -f name con show | grep -Fx "$ssid")
-
       if [ -n "$saved" ]; then
         nmcli con up "$ssid"
       else
-        # Ask for password via wofi
-        password=$(wofi --dmenu --prompt "Password for $ssid" --password)
+        password=$(rofi -dmenu -p "Password for $ssid" -password)
         if [ -z "$password" ]; then
           nmcli dev wifi connect "$ssid"
         else
@@ -76,6 +86,103 @@
       fi
     '';
   };
+
+  # ── Rofi config ───────────────────────────────────────────────────────
+  home.file.".config/rofi/config.rasi".text = ''
+    configuration {
+      modi: "drun,run";
+      show-icons: true;
+      icon-theme: "Papirus-Dark";
+      drun-display-format: "{name}";
+      disable-history: false;
+      hide-scrollbar: true;
+      display-drun: "   Apps";
+      display-run: "   Run";
+      font: "JetBrainsMono Nerd Font 13";
+      kb-cancel: "Escape";
+    }
+
+    @theme "~/.config/rofi/theme.rasi"
+  '';
+
+  home.file.".config/rofi/theme.rasi".text = ''
+    * {
+      bg:     rgba(13, 14, 26, 97%);
+      bg-alt: rgba(26, 27, 46, 80%);
+      fg:     #c0caf5;
+      fg-alt: #565f89;
+      accent: #7aa2f7;
+      urgent: #f7768e;
+
+      background-color: transparent;
+      text-color: @fg;
+    }
+
+    window {
+      background-color: @bg;
+      border: 1px solid;
+      border-color: rgba(122, 162, 247, 30%);
+      border-radius: 12px;
+      width: 500px;
+      padding: 12px;
+    }
+
+    mainbox {
+      background-color: transparent;
+      children: [inputbar, listview];
+      spacing: 8px;
+    }
+
+    inputbar {
+      background-color: @bg-alt;
+      border-radius: 8px;
+      padding: 8px 12px;
+      spacing: 8px;
+      children: [prompt, entry];
+    }
+
+    prompt {
+      text-color: @accent;
+      font: "JetBrainsMono Nerd Font 13";
+    }
+
+    entry {
+      text-color: @fg;
+      placeholder: "Search...";
+      placeholder-color: @fg-alt;
+    }
+
+    listview {
+      background-color: transparent;
+      columns: 1;
+      lines: 8;
+      scrollbar: false;
+      spacing: 4px;
+    }
+
+    element {
+      background-color: transparent;
+      border-radius: 8px;
+      padding: 8px 12px;
+      spacing: 8px;
+      orientation: horizontal;
+      children: [element-icon, element-text];
+    }
+
+    element selected {
+      background-color: rgba(122, 162, 247, 15%);
+      text-color: @accent;
+    }
+
+    element-icon {
+      size: 24px;
+    }
+
+    element-text {
+      text-color: inherit;
+      vertical-align: 0.5;
+    }
+  '';
 
   # ── Eww bottom dashboard ──────────────────────────────────────────────
   home.file.".config/eww/eww.yuck".text = ''
@@ -167,7 +274,7 @@
            :orientation "h"
            :space-evenly false
            :spacing 12
-           :onclick "bash $HOME/.local/bin/wofi-wifi &"
+           :onclick "bash $HOME/.local/bin/rofi-wifi &"
         (label :class "card-icon" :text "󰤨")
         (box :orientation "v" :space-evenly false :spacing 2
           (label :class "card-label" :halign "start" :text network-ssid)
@@ -529,45 +636,6 @@
     '';
   };
 
-  # ── Wofi ──────────────────────────────────────────────────────────────
-  home.file.".config/wofi/style.css".text = ''
-    window {
-      background: rgba(26, 27, 46, 0.97);
-      border: 1px solid rgba(122, 162, 247, 0.3);
-      border-radius: 12px;
-      font-family: "JetBrainsMono Nerd Font";
-    }
-
-    #input {
-      background: rgba(22, 33, 62, 0.8);
-      border: 1px solid rgba(122, 162, 247, 0.2);
-      border-radius: 8px;
-      color: #c0caf5;
-      padding: 8px 12px;
-      margin: 8px;
-      font-size: 14px;
-    }
-
-    #input:focus {
-      border-color: rgba(122, 162, 247, 0.6);
-      outline: none;
-    }
-
-    #entry {
-      padding: 6px 12px;
-      border-radius: 6px;
-      color: #a9b1d6;
-      margin: 2px 6px;
-    }
-
-    #entry:selected {
-      background: rgba(122, 162, 247, 0.15);
-      color: #7aa2f7;
-    }
-
-    #text { font-size: 13px; }
-  '';
-
   # ── Mako ──────────────────────────────────────────────────────────────
   services.mako = {
     enable = true;
@@ -649,10 +717,10 @@
       ];
 
       bind = [
-      ", escape, exec, eww close dashboard-panel"
-      "$mod, N, exec, nm-connection-editor"
+        ", escape, exec, eww close dashboard-panel"
+        "$mod, N, exec, nm-connection-editor"
         "$mod, Return, exec, kitty"
-        "$mod, Space, exec, wofi --show drun"
+        "$mod, Space, exec, rofi -show drun"
         "$mod, B, exec, firefox"
         "$mod, Q, killactive"
         "$mod, F, fullscreen"
