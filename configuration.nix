@@ -134,6 +134,13 @@
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  programs.hyprland = {
+  enable = true;
+  xwayland.enable = true;
+};
+
+# Optional but recommended
+security.polkit.enable = true;
 
   system.stateVersion = "25.11"; # Did you read the comment?
 
