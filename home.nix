@@ -6,8 +6,12 @@
 
   programs.git = {
     enable = true;
-    userName = "mukund-dev";
+    userName = "mukund-vish";
     userEmail = "terryterros86@gmail.com";
+
+    extraConfig = {
+      credential.helper = "store";
+    };
   };
 
   programs.bash.enable = true;
