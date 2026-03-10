@@ -17,7 +17,6 @@
   home.sessionPath = [ "$HOME/.local/bin" ];
 
   home.packages = with pkgs; [
-#     kitty
     waybar
     rofi
     mako
@@ -35,6 +34,8 @@
     pamixer
     eww
     playerctl
+    wf-recorder      # screen recorder
+    cliphist         # clipboard history manager (optional, wl-paste used as fallback)
   ];
 
   # ── GTK theme ─────────────────────────────────────────────────────────
@@ -84,6 +85,53 @@
           nmcli dev wifi connect "$ssid" password "$password"
         fi
       fi
+    '';
+  };
+
+  # ── Eww toggle helper scripts ─────────────────────────────────────────
+  # Each waybar module gets its own toggle script that closes all other popups first.
+
+  home.file.".local/bin/eww-toggle-volume" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      eww close brightness-popup clock-popup dashboard-overlay 2>/dev/null
+      eww open --toggle volume-popup
+    '';
+  };
+
+  home.file.".local/bin/eww-toggle-brightness" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      eww close volume-popup clock-popup dashboard-overlay 2>/dev/null
+      eww open --toggle brightness-popup
+    '';
+  };
+
+  home.file.".local/bin/eww-toggle-clock" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      eww close volume-popup brightness-popup dashboard-overlay 2>/dev/null
+      eww open --toggle clock-popup
+    '';
+  };
+
+  home.file.".local/bin/eww-toggle-dashboard" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      eww close volume-popup brightness-popup clock-popup 2>/dev/null
+      eww open --toggle dashboard-overlay
+    '';
+  };
+
+  home.file.".local/bin/eww-close-all" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      eww close volume-popup brightness-popup clock-popup dashboard-overlay 2>/dev/null
     '';
   };
 
@@ -184,313 +232,13 @@
     }
   '';
 
-  # ── Eww bottom dashboard ──────────────────────────────────────────────
-  home.file.".config/eww/eww.yuck".text = ''
-    (defvar dashboard-visible false)
+  # ── Eww config ────────────────────────────────────────────────────────
+  # eww.yuck and eww.scss are managed as separate files below.
+  # They are written out verbatim; paste the contents of the two
+  # generated files (eww.yuck / eww.scss) into these strings.
 
-    (defpoll clock-time :interval "1s"
-      "date \"+%H:%M:%S\"")
-
-    (defpoll clock-date :interval "60s"
-      "date \"+%A, %d %B %Y\"")
-
-    (defpoll volume :interval "1s"
-      "pamixer --get-volume 2>/dev/null || echo 0")
-
-    (defpoll muted :interval "1s"
-      "pamixer --get-mute 2>/dev/null || echo false")
-
-    (defpoll brightness :interval "2s"
-      "brightnessctl get 2>/dev/null | awk -v max=$(brightnessctl max 2>/dev/null) \"{printf \\\"%d\\\", ($1/max)*100}\"")
-
-    (defpoll network-ssid :interval "5s"
-      "nmcli -t -f active,ssid dev wifi 2>/dev/null | grep '^yes' | cut -d: -f2 || echo \"No Network\"")
-
-    (defpoll network-strength :interval "5s"
-      "awk 'NR==3{gsub(/ /,\"\"); split($0,a,\":\"); printf \"%d\", (a[2]/70)*100}' /proc/net/wireless 2>/dev/null || echo 0")
-
-    (defpoll battery-level :interval "30s"
-      "cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 0")
-
-    (defpoll battery-status :interval "30s"
-      "cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo \"Unknown\"")
-
-    (defpoll media-title :interval "2s"
-      "playerctl metadata title 2>/dev/null || echo \"Nothing playing\"")
-
-    (defpoll media-artist :interval "2s"
-      "playerctl metadata artist 2>/dev/null || echo \"\"")
-
-    (defpoll media-status :interval "2s"
-      "playerctl status 2>/dev/null || echo \"Stopped\"")
-
-    (defwidget clock-widget []
-      (box :class "dash-card"
-           :orientation "v"
-           :space-evenly false
-           :spacing 4
-        (label :class "clock-time" :text clock-time)
-        (label :class "clock-date" :text clock-date)))
-
-    (defwidget calendar-widget []
-      (box :class "dash-card"
-           :orientation "v"
-           :space-evenly false
-        (calendar :class "calendar"
-                  :show-heading true
-                  :show-day-names true
-                  :show-surrounding-days true)))
-
-    (defwidget volume-widget []
-      (box :class "dash-card"
-           :orientation "v"
-           :space-evenly false
-           :spacing 8
-        (box :orientation "h" :space-evenly false :spacing 8
-          (label :class "card-icon" :text {muted == "true" ? "󰝟" : "󰕾"})
-          (label :class "card-label" :text "Volume")
-          (label :class "card-value" :halign "end" :hexpand true
-                 :text {muted == "true" ? "Muted" : "''${volume}%"}))
-        (scale :class "slider vol-slider"
-               :min 0 :max 100 :value volume
-               :onchange "pamixer --set-volume {}")))
-
-    (defwidget brightness-widget []
-      (box :class "dash-card"
-           :orientation "v"
-           :space-evenly false
-           :spacing 8
-        (box :orientation "h" :space-evenly false :spacing 8
-          (label :class "card-icon" :text "󰃞")
-          (label :class "card-label" :text "Brightness")
-          (label :class "card-value" :halign "end" :hexpand true
-                 :text "''${brightness}%"))
-        (scale :class "slider bright-slider"
-               :min 1 :max 100 :value brightness
-               :onchange "brightnessctl set {}%")))
-
-    (defwidget network-widget []
-      (box :class "dash-card"
-           :orientation "h"
-           :space-evenly false
-           :spacing 12
-           :onclick "bash $HOME/.local/bin/rofi-wifi &"
-        (label :class "card-icon" :text "󰤨")
-        (box :orientation "v" :space-evenly false :spacing 2
-          (label :class "card-label" :halign "start" :text network-ssid)
-          (label :class "card-subtext" :halign "start"
-                 :text "''${network-strength}% signal"))))
-
-    (defwidget battery-widget []
-      (box :class "dash-card"
-           :orientation "h"
-           :space-evenly false
-           :spacing 12
-        (label :class "card-icon"
-               :text {battery-status == "Charging" ? "󰂄" :
-                      battery-level > 80 ? "󰁹" :
-                      battery-level > 60 ? "󰂂" :
-                      battery-level > 40 ? "󰂀" :
-                      battery-level > 20 ? "󰁾" : "󰁺"})
-        (box :orientation "v" :space-evenly false :spacing 2
-          (label :class "card-label" :halign "start" :text "''${battery-level}%")
-          (label :class "card-subtext" :halign "start" :text battery-status))))
-
-    (defwidget media-widget []
-      (box :class "dash-card"
-           :orientation "h"
-           :space-evenly false
-           :spacing 16
-        (box :orientation "v" :space-evenly false :hexpand true :spacing 2
-          (label :class "card-icon" :halign "start" :text "󰎇")
-          (label :class "media-title" :halign "start" :truncate true :text media-title)
-          (label :class "media-artist" :halign "start" :truncate true :text media-artist))
-        (box :orientation "h" :valign "center" :spacing 16
-          (button :class "media-btn" :onclick "playerctl previous" "󰒮")
-          (button :class "media-btn media-play-btn" :onclick "playerctl play-pause"
-            {media-status == "Playing" ? "󰏤" : "󰐊"})
-          (button :class "media-btn" :onclick "playerctl next" "󰒭"))))
-
-    (defwidget dashboard []
-      (box :class "dashboard"
-           :orientation "h"
-           :space-evenly false
-           :spacing 12
-        (box :orientation "v" :space-evenly false :spacing 12
-          (clock-widget)
-          (calendar-widget))
-        (box :orientation "v" :space-evenly false :spacing 12 :hexpand true
-          (volume-widget)
-          (brightness-widget)
-          (box :orientation "h" :space-evenly true :spacing 12
-            (network-widget)
-            (battery-widget))
-          (media-widget))))
-
-    (defwindow dashboard-panel
-      :monitor 0
-      :geometry (geometry
-        :x "0px"
-        :y "0px"
-        :width "100%"
-        :height "360px"
-        :anchor "bottom center")
-      :stacking "overlay"
-      :exclusive false
-      :visible dashboard-visible
-      (dashboard))
-  '';
-
-  home.file.".config/eww/eww.scss".text = ''
-    * {
-      font-family: "JetBrainsMono Nerd Font";
-      font-size: 13px;
-    }
-
-    .dashboard {
-      background: rgba(13, 14, 26, 0.97);
-      border-top: 1px solid rgba(122, 162, 247, 0.25);
-      padding: 16px 20px;
-    }
-
-    .dash-card {
-      background: rgba(26, 27, 46, 0.8);
-      border-radius: 12px;
-      padding: 12px 14px;
-      border: 1px solid rgba(122, 162, 247, 0.08);
-      min-width: 0;
-    }
-
-    .clock-time {
-      font-size: 42px;
-      font-weight: bold;
-      color: #7aa2f7;
-      letter-spacing: 2px;
-    }
-
-    .clock-date {
-      font-size: 12px;
-      color: #565f89;
-    }
-
-    calendar {
-      background: transparent;
-      color: #c0caf5;
-      font-size: 12px;
-    }
-
-    calendar:indeterminate { color: #3b3f5e; }
-
-    calendar:selected {
-      background: #7aa2f7;
-      border-radius: 6px;
-      color: #1a1b2e;
-      font-weight: bold;
-    }
-
-    calendar.highlight {
-      color: #f7768e;
-      font-weight: bold;
-    }
-
-    calendar header button {
-      color: #7dcfff;
-      background: transparent;
-      border: none;
-      padding: 2px 6px;
-    }
-
-    calendar header button:hover {
-      background: rgba(122, 162, 247, 0.15);
-      border-radius: 6px;
-    }
-
-    calendar header label {
-      color: #7dcfff;
-      font-weight: bold;
-    }
-
-    .card-icon {
-      font-size: 18px;
-      color: #7aa2f7;
-      min-width: 22px;
-    }
-
-    .card-label {
-      color: #c0caf5;
-      font-weight: bold;
-    }
-
-    .card-value { color: #565f89; }
-
-    .card-subtext {
-      font-size: 11px;
-      color: #414868;
-    }
-
-    scale { margin-top: 4px; }
-
-    scale trough {
-      background: rgba(86, 95, 137, 0.3);
-      border-radius: 99px;
-      min-height: 6px;
-    }
-
-    scale highlight { border-radius: 99px; }
-
-    .vol-slider highlight {
-      background: linear-gradient(to right, #7aa2f7, #bb9af7);
-    }
-
-    .bright-slider highlight {
-      background: linear-gradient(to right, #e0af68, #ff9e64);
-    }
-
-    scale slider {
-      background: #c0caf5;
-      border-radius: 99px;
-      min-width: 14px;
-      min-height: 14px;
-      border: none;
-      box-shadow: none;
-    }
-
-    scale slider:hover { background: #ffffff; }
-
-    .media-title {
-      color: #c0caf5;
-      font-weight: bold;
-    }
-
-    .media-artist {
-      font-size: 11px;
-      color: #565f89;
-    }
-
-    .media-btn {
-      font-size: 20px;
-      color: #565f89;
-      background: transparent;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 8px;
-    }
-
-    .media-btn:hover {
-      color: #c0caf5;
-      background: rgba(122, 162, 247, 0.1);
-    }
-
-    .media-play-btn {
-      font-size: 28px;
-      color: #7aa2f7;
-    }
-
-    .media-play-btn:hover {
-      color: #ffffff;
-      background: rgba(122, 162, 247, 0.2);
-    }
-  '';
+  home.file.".config/eww/eww.yuck".source = ./eww.yuck;
+  home.file.".config/eww/eww.scss".source = ./eww.scss;
 
   # ── Waybar ────────────────────────────────────────────────────────────
   programs.waybar = {
@@ -501,9 +249,20 @@
         position = "top";
         height = 36;
         spacing = 4;
-        modules-left = [ "hyprland/workspaces" "hyprland/window" ];
+
+        # Left  : workspaces + active window title
+        # Center: clock (opens clock popup)
+        # Right : brightness dot · pulseaudio · network · battery · tray · dashboard dot
+        modules-left   = [ "hyprland/workspaces" "hyprland/window" ];
         modules-center = [ "clock" ];
-        modules-right = [ "pulseaudio" "network" "battery" "tray" "custom/dashboard" ];
+        modules-right  = [
+          "custom/brightness"
+          "pulseaudio"
+          "network"
+          "battery"
+          "tray"
+          "custom/dashboard"
+        ];
 
         "hyprland/workspaces" = {
           format = "{icon}";
@@ -514,7 +273,7 @@
             "4" = "󰲧";
             "5" = "󰲩";
             default = "○";
-            active = "●";
+            active  = "●";
           };
           on-click = "activate";
         };
@@ -524,44 +283,54 @@
           separate-outputs = true;
         };
 
+        # ── CENTER: Clock — opens clock popup ──────────────────────────
         clock = {
-          format = "󰥔  {:%H:%M   󰃭  %d %b}";
-          tooltip = false;
-          on-click = "eww open --toggle dashboard-panel";
+          format   = "󰥔  {:%H:%M   󰃭  %d %b}";
+          tooltip  = false;
+          on-click = "bash $HOME/.local/bin/eww-toggle-clock";
         };
 
-        battery = {
-          states = { warning = 30; critical = 15; };
-          format = "{icon}  {capacity}%";
-          format-charging = "󰂄  {capacity}%";
-          format-icons = [ "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
-          on-click = "eww open --toggle dashboard-panel";
+        # ── RIGHT: Brightness dot (first dot) ──────────────────────────
+        "custom/brightness" = {
+          format   = "󰃟";
+          tooltip  = false;
+          on-click = "bash $HOME/.local/bin/eww-toggle-brightness";
         };
 
-        network = {
-          format-wifi = "󰤨  {essid}";
-          format-ethernet = "󰈀  Connected";
-          format-disconnected = "󰤭  No Network";
-          tooltip-format = "{ipAddr}";
-          on-click = "eww open --toggle dashboard-panel";
-        };
-
+        # ── RIGHT: Volume — opens volume popup ─────────────────────────
         pulseaudio = {
-          format = "{icon}  {volume}%";
-          format-muted = "󰝟  Muted";
-          format-icons = { default = [ "󰕿" "󰖀" "󰕾" ]; };
-          on-click = "eww open --toggle dashboard-panel";
-          on-scroll-up = "swayosd-client --output-volume raise";
+          format        = "{icon}  {volume}%";
+          format-muted  = "󰝟  Muted";
+          format-icons  = { default = [ "󰕿" "󰖀" "󰕾" ]; };
+          on-click      = "bash $HOME/.local/bin/eww-toggle-volume";
+          on-scroll-up   = "swayosd-client --output-volume raise";
           on-scroll-down = "swayosd-client --output-volume lower";
         };
 
-        "custom/dashboard" = {
-          format = "󰹯";
-          tooltip = false;
-          on-click = "eww open --toggle dashboard-panel";
+        network = {
+          format-wifi        = "󰤨  {essid}";
+          format-ethernet    = "󰈀  Connected";
+          format-disconnected = "󰤭  No Network";
+          tooltip-format     = "{ipAddr}";
+          on-click           = "bash $HOME/.local/bin/rofi-wifi &";
+        };
+
+        battery = {
+          states        = { warning = 30; critical = 15; };
+          format        = "{icon}  {capacity}%";
+          format-charging = "󰂄  {capacity}%";
+          format-icons  = [ "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
+          tooltip       = false;
         };
 
         tray = { spacing = 8; };
+
+        # ── RIGHT: Dashboard dot (last icon) — opens full overlay ───────
+        "custom/dashboard" = {
+          format   = "󰹯";
+          tooltip  = false;
+          on-click = "bash $HOME/.local/bin/eww-toggle-dashboard";
+        };
       };
     };
 
@@ -617,21 +386,32 @@
         padding: 8px;
       }
 
-      #battery { color: #9ece6a; padding: 0 12px; }
-      #battery.warning { color: #e0af68; }
+      #battery        { color: #9ece6a;  padding: 0 12px; }
+      #battery.warning  { color: #e0af68; }
       #battery.critical { color: #f7768e; }
-      #network { color: #7aa2f7; padding: 0 12px; }
-      #pulseaudio { color: #bb9af7; padding: 0 12px; }
+
+      #network    { color: #7aa2f7;  padding: 0 12px; }
+      #pulseaudio { color: #bb9af7;  padding: 0 12px; }
       #pulseaudio.muted { color: #565f89; }
+
       #tray { padding: 0 8px; }
 
+      /* Brightness dot */
+      #custom-brightness {
+        color: #e0af68;
+        padding: 0 10px;
+        font-size: 16px;
+        transition: all 0.2s ease;
+      }
+      #custom-brightness:hover { color: #ff9e64; }
+
+      /* Dashboard dot */
       #custom-dashboard {
         color: #565f89;
         padding: 0 12px;
         font-size: 15px;
         transition: all 0.2s ease;
       }
-
       #custom-dashboard:hover { color: #7aa2f7; }
     '';
   };
@@ -641,16 +421,16 @@
     enable = true;
     settings = {
       background-color = "#1a1b2e";
-      text-color = "#c0caf5";
-      border-color = "#7aa2f7";
-      border-radius = 8;
-      border-size = 1;
-      padding = "12,16";
-      margin = "8";
-      font = "JetBrainsMono Nerd Font 11";
-      width = 320;
-      height = 100;
-      default-timeout = 5000;
+      text-color       = "#c0caf5";
+      border-color     = "#7aa2f7";
+      border-radius    = 8;
+      border-size      = 1;
+      padding          = "12,16";
+      margin           = "8";
+      font             = "JetBrainsMono Nerd Font 11";
+      width            = 320;
+      height           = 100;
+      default-timeout  = 5000;
     };
   };
 
@@ -658,30 +438,22 @@
   programs.kitty = {
     enable = true;
     settings = {
-      font_family = "JetBrainsMono Nerd Font";
-      font_size = 13;
-      background = "#1a1b2e";
-      foreground = "#c0caf5";
-      background_opacity = "0.92";
-      cursor = "#c0caf5";
-      cursor_shape = "beam";
-      color0  = "#15161e";
-      color1  = "#f7768e";
-      color2  = "#9ece6a";
-      color3  = "#e0af68";
-      color4  = "#7aa2f7";
-      color5  = "#bb9af7";
-      color6  = "#7dcfff";
-      color7  = "#a9b1d6";
-      color8  = "#414868";
-      color9  = "#f7768e";
-      color10 = "#9ece6a";
-      color11 = "#e0af68";
-      color12 = "#7aa2f7";
-      color13 = "#bb9af7";
-      color14 = "#7dcfff";
-      color15 = "#c0caf5";
-      window_padding_width = 12;
+      font_family         = "JetBrainsMono Nerd Font";
+      font_size           = 13;
+      background          = "#1a1b2e";
+      foreground          = "#c0caf5";
+      background_opacity  = "0.92";
+      cursor              = "#c0caf5";
+      cursor_shape        = "beam";
+      color0  = "#15161e"; color1  = "#f7768e";
+      color2  = "#9ece6a"; color3  = "#e0af68";
+      color4  = "#7aa2f7"; color5  = "#bb9af7";
+      color6  = "#7dcfff"; color7  = "#a9b1d6";
+      color8  = "#414868"; color9  = "#f7768e";
+      color10 = "#9ece6a"; color11 = "#e0af68";
+      color12 = "#7aa2f7"; color13 = "#bb9af7";
+      color14 = "#7dcfff"; color15 = "#c0caf5";
+      window_padding_width    = 12;
       confirm_os_window_close = 0;
     };
   };
@@ -709,78 +481,87 @@
       ];
 
       binde = [
-        ", XF86AudioRaiseVolume, exec, swayosd-client --output-volume raise"
-        ", XF86AudioLowerVolume, exec, swayosd-client --output-volume lower"
-        ", XF86AudioMute, exec, swayosd-client --output-volume mute-toggle"
-        ", XF86MonBrightnessUp, exec, swayosd-client --brightness raise"
-        ", XF86MonBrightnessDown, exec, swayosd-client --brightness lower"
+        ", XF86AudioRaiseVolume,   exec, swayosd-client --output-volume raise"
+        ", XF86AudioLowerVolume,   exec, swayosd-client --output-volume lower"
+        ", XF86AudioMute,          exec, swayosd-client --output-volume mute-toggle"
+        ", XF86MonBrightnessUp,    exec, swayosd-client --brightness raise"
+        ", XF86MonBrightnessDown,  exec, swayosd-client --brightness lower"
       ];
 
       bind = [
-        ", escape, exec, eww close dashboard-panel"
-        "$mod, N, exec, nm-connection-editor"
+        # Close all eww popups with Escape
+        ", escape, exec, bash $HOME/.local/bin/eww-close-all"
+
+        "$mod, N,      exec, nm-connection-editor"
         "$mod, Return, exec, kitty"
-        "$mod, Space, exec, rofi -show drun"
-        "$mod, B, exec, firefox"
-        "$mod, Q, killactive"
-        "$mod, F, fullscreen"
-        "$mod, V, togglefloating"
-        "$mod, P, pseudo"
-        "$mod, left, movefocus, l"
+        "$mod, Space,  exec, rofi -show drun"
+        "$mod, B,      exec, firefox"
+        "$mod, Q,      killactive,"
+        "$mod, F,      fullscreen,"
+        "$mod, V,      togglefloating,"
+        "$mod, P,      pseudo,"
+
+        "$mod, left,  movefocus, l"
         "$mod, right, movefocus, r"
-        "$mod, up, movefocus, u"
-        "$mod, down, movefocus, d"
-        "$mod SHIFT, left, movewindow, l"
+        "$mod, up,    movefocus, u"
+        "$mod, down,  movefocus, d"
+
+        "$mod SHIFT, left,  movewindow, l"
         "$mod SHIFT, right, movewindow, r"
-        "$mod SHIFT, up, movewindow, u"
-        "$mod SHIFT, down, movewindow, d"
-        "$mod ALT, right, resizeactive, 50 0"
-        "$mod ALT, left, resizeactive, -50 0"
-        "$mod ALT, up, resizeactive, 0 -50"
-        "$mod ALT, down, resizeactive, 0 50"
-        "$mod, S, exec, grim -g \"$(slurp)\" ~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png"
+        "$mod SHIFT, up,    movewindow, u"
+        "$mod SHIFT, down,  movewindow, d"
+
+        "$mod ALT, right, resizeactive,  50 0"
+        "$mod ALT, left,  resizeactive, -50 0"
+        "$mod ALT, up,    resizeactive,  0 -50"
+        "$mod ALT, down,  resizeactive,  0  50"
+
+        "$mod, S,       exec, grim -g \"$(slurp)\" ~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png"
         "$mod SHIFT, S, exec, grim ~/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png"
+
         "$mod, 1, workspace, 1"
         "$mod, 2, workspace, 2"
         "$mod, 3, workspace, 3"
         "$mod, 4, workspace, 4"
         "$mod, 5, workspace, 5"
+
         "$mod SHIFT, 1, movetoworkspace, 1"
         "$mod SHIFT, 2, movetoworkspace, 2"
         "$mod SHIFT, 3, movetoworkspace, 3"
         "$mod SHIFT, 4, movetoworkspace, 4"
         "$mod SHIFT, 5, movetoworkspace, 5"
+
         "ALT, F4, exec, systemctl poweroff"
         "$mod, L, exit,"
       ];
 
       general = {
-        gaps_in = 6;
+        gaps_in  = 6;
         gaps_out = 12;
         border_size = 1;
-        "col.active_border" = "rgba(7aa2f7cc)";
+        "col.active_border"   = "rgba(7aa2f7cc)";
         "col.inactive_border" = "rgba(1a1b2ecc)";
         layout = "dwindle";
         resize_on_border = true;
       };
 
       dwindle = {
-        pseudotile = true;
+        pseudotile     = true;
         preserve_split = true;
       };
 
       decoration = {
         rounding = 10;
         blur = {
-          enabled = true;
-          size = 8;
-          passes = 2;
+          enabled           = true;
+          size              = 8;
+          passes            = 2;
           new_optimizations = true;
         };
         shadow = {
           enabled = true;
-          range = 20;
-          color = "rgba(7aa2f722)";
+          range   = 20;
+          color   = "rgba(7aa2f722)";
         };
       };
 
@@ -788,28 +569,26 @@
         enabled = true;
         bezier = [
           "easeOut, 0.16, 1, 0.3, 1"
-          "easeIn, 0.7, 0, 0.84, 0"
+          "easeIn,  0.7, 0, 0.84, 0"
         ];
         animation = [
-          "windows, 1, 4, easeOut, popin 80%"
-          "windowsOut, 1, 3, easeIn, popin 80%"
-          "fade, 1, 4, easeOut"
+          "windows,    1, 4, easeOut, popin 80%"
+          "windowsOut, 1, 3, easeIn,  popin 80%"
+          "fade,       1, 4, easeOut"
           "workspaces, 1, 4, easeOut, slide"
         ];
       };
 
       input = {
-        kb_layout = "us";
+        kb_layout    = "us";
         follow_mouse = 1;
-        touchpad = {
-          natural_scroll = true;
-        };
+        touchpad.natural_scroll = true;
       };
 
       misc = {
-        disable_hyprland_logo = true;
+        disable_hyprland_logo    = true;
         disable_splash_rendering = true;
-        animate_manual_resizes = true;
+        animate_manual_resizes   = true;
       };
     };
   };
