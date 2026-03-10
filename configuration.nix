@@ -109,6 +109,7 @@ in
    git
    vscode
    brave
+   nodejs
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
