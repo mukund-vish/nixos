@@ -105,6 +105,7 @@
    vscode
    brave
    nodejs
+   fastfetch
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
@@ -141,6 +142,9 @@
 
 # Optional but recommended
 security.polkit.enable = true;
+hardware.bluetooth.enable = true;
+hardware.bluetooth.powerOnBoot = true;
+services.blueman.enable = true;
 
   system.stateVersion = "25.11"; # Did you read the comment?
 
