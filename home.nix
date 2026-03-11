@@ -16,9 +16,9 @@
 
   home.sessionPath = [ "$HOME/.local/bin" ];
   home.sessionVariables = {
-  XDG_CURRENT_DESKTOP = "Hyprland";
-  XDG_ICON_THEME = "Papirus-Dark";
-};
+    XDG_CURRENT_DESKTOP = "Hyprland";
+    XDG_ICON_THEME = "Papirus-Dark";
+  };
 
   home.packages = with pkgs; [
     waybar
@@ -61,6 +61,21 @@
     iconTheme = {
       name = "Papirus-Dark";
       package = pkgs.papirus-icon-theme;
+    };
+    gtk3.extraConfig = {
+  gtk-application-prefer-dark-theme = 1;
+  gtk-decoration-layout = ":";
+};
+gtk4.extraConfig = {
+  gtk-application-prefer-dark-theme = 1;
+  gtk-decoration-layout = ":";
+};
+  };
+
+  # ── dconf settings ────────────────────────────────────────────────────
+  dconf.settings = {
+    "org/gnome/desktop/wm/preferences" = {
+      button-layout = "close,minimize,maximize:";
     };
   };
 
@@ -500,64 +515,64 @@
   '';
 
   # ── SwayNC (notification center) ──────────────────────────────────────
- home.file.".config/swaync/config.json".text = builtins.toJSON {
-  positionX = "right";
-  positionY = "top";
+  home.file.".config/swaync/config.json".text = builtins.toJSON {
+    positionX = "right";
+    positionY = "top";
 
-  icon-theme = "Papirus-Dark";
+    icon-theme = "Papirus-Dark";
 
-  layer = "overlay";
-  control-center-layer = "overlay";
-  layer-shell = true;
-  cssPriority = "application";
+    layer = "overlay";
+    control-center-layer = "overlay";
+    layer-shell = true;
+    cssPriority = "application";
 
-  control-center-width = 360;
-  control-center-height = 600;
+    control-center-width = 360;
+    control-center-height = 600;
 
-  control-center-margin-top = 8;
-  control-center-margin-bottom = 8;
-  control-center-margin-right = 8;
-  control-center-margin-left = 0;
+    control-center-margin-top = 8;
+    control-center-margin-bottom = 8;
+    control-center-margin-right = 8;
+    control-center-margin-left = 0;
 
-  notification-window-width = 320;
-  notification-window-height = 120;
+    notification-window-width = 320;
+    notification-window-height = 120;
 
-  notification-icon-size = 40;
-  notification-body-image-height = 120;
-  notification-body-image-width = 200;
+    notification-icon-size = 40;
+    notification-body-image-height = 120;
+    notification-body-image-width = 200;
 
-  timeout = 0.5;
-  timeout-low = 0.2;
-  timeout-critical = 1;
+    timeout = 0.5;
+    timeout-low = 0.2;
+    timeout-critical = 1;
 
-  fit-to-screen = false;
-  keyboard-shortcuts = true;
-  image-visibility = "when-available";
-  transition-time = 150;
+    fit-to-screen = false;
+    keyboard-shortcuts = true;
+    image-visibility = "when-available";
+    transition-time = 150;
 
-  hide-on-clear = false;
-  hide-on-action = true;
-  script-fail-notify = true;
+    hide-on-clear = false;
+    hide-on-action = true;
+    script-fail-notify = true;
 
-  notification-2fa-action = true;
-  notification-inline-replies = false;
+    notification-2fa-action = true;
+    notification-inline-replies = false;
 
-  widgets = [ "title" "dnd" "notifications" ];
+    widgets = [ "title" "dnd" "notifications" ];
 
-  widget-config = {
-    title = {
-      text = "Notifications";
-      clear-all-button = true;
-      button-text = "Clear All";
+    widget-config = {
+      title = {
+        text = "Notifications";
+        clear-all-button = true;
+        button-text = "Clear All";
+      };
+
+      dnd = {
+        text = "Do Not Disturb";
+      };
+
+      notifications = {};
     };
-
-    dnd = {
-      text = "Do Not Disturb";
-    };
-
-    notifications = {};
   };
-};
 
   home.file.".config/swaync/style.css".text = ''
     * {
@@ -788,9 +803,6 @@
           "custom/media-next"
         ];
 
-        # ── Notification center ────────────────────────────────────────
-        # Left-click toggles the swaync panel.
-        # Right-click toggles Do Not Disturb.
         "custom/notifications" = {
           format = "󰂚";
           tooltip = true;
@@ -800,7 +812,6 @@
           on-click-right = "swaync-client -d";
         };
 
-        # ── Bluetooth ──────────────────────────────────────────────────
         bluetooth = {
           format = "󰂯";
           format-connected = "󰂱  {device_alias}";
@@ -814,7 +825,6 @@
           on-click-right = "bluetoothctl show | grep -q 'Powered: yes' && bluetoothctl power off || bluetoothctl power on";
         };
 
-        # ── Media title (MPRIS) ────────────────────────────────────────
         mpris = {
           format = "{player_icon}  {title}  –  {artist}";
           format-paused = "󰏤  {title}  –  {artist}";
@@ -833,7 +843,6 @@
           on-click = "playerctl play-pause";
         };
 
-        # ── Media controls ─────────────────────────────────────────────
         "custom/media-prev" = {
           format = "󰒮";
           tooltip = false;
@@ -932,7 +941,6 @@
         color: #c0caf5;
       }
 
-      /* Notifications */
       #custom-notifications {
         color: #bb9af7;
         padding: 0 14px;
@@ -944,7 +952,6 @@
         border-radius: 8px;
       }
 
-      /* Bluetooth */
       #bluetooth {
         color: #7dcfff;
         padding: 0 14px;
@@ -964,7 +971,6 @@
         border-radius: 8px;
       }
 
-      /* MPRIS media title */
       #mpris {
         color: #c0caf5;
         padding: 0 20px;
@@ -976,7 +982,6 @@
         color: #bb9af7;
       }
 
-      /* Media control buttons */
       #custom-media-prev,
       #custom-media-play,
       #custom-media-next {
@@ -1045,6 +1050,24 @@
     settings = {
       monitor = ",preferred,auto,1";
 
+      env = [
+        "XCURSOR_THEME,Bibata-Modern-Classic"
+        "XCURSOR_SIZE,24"
+        "GTK_THEME,catppuccin-mocha-blue-standard"
+      ];
+
+      cursor = {
+        no_hardware_cursors = true;
+      };
+
+      workspace = [
+        "1, layout:master"
+        "2, layout:master"
+        "3, layout:dwindle"
+        "4, layout:dwindle"
+        "5, layout:dwindle"
+      ];
+
       exec-once = [
         "swww-daemon"
         "bash -c 'sleep 1 && swww img /home/mukund/Pictures/wallpaper.png'"
@@ -1071,6 +1094,8 @@
       ];
 
       bind = [
+        "$mod, TAB, exec, hyprctl keyword general:layout master"
+        "$mod SHIFT, TAB, exec, hyprctl keyword general:layout dwindle"
         ", escape, exec, eww close dashboard-panel"
         "$mod, N, exec, nm-connection-editor"
         "$mod, Return, exec, kitty"
