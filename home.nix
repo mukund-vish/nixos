@@ -60,6 +60,8 @@
     blueman
     bluez
     libnotify
+    hyprpicker
+    wlogout
   ];
 
   # ── GTK theme ─────────────────────────────────────────────────────────
@@ -1163,6 +1165,17 @@ gtk4.extraConfig = {
         "$mod SHIFT, 5, movetoworkspace, 5"
         "ALT, F4, exec, systemctl poweroff"
         "$mod, L, exit,"
+
+        # --- New Keybinds ---
+        "$mod ALT, L, exec, hyprlock"
+        "$mod SHIFT, R, exec, hyprctl reload"
+        "$mod, Z, togglespecialworkspace, magic"
+        "$mod SHIFT, Z, movetoworkspace, special:magic"
+        "$mod ALT, P, exec, hyprpicker -a"
+        "$mod, G, togglegroup"
+        "$mod ALT, G, changegroupactive"
+        "ALT, Tab, cyclenext"
+        "$mod, J, togglesplit"
       ];
 
       general = {

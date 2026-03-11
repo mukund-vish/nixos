@@ -88,21 +88,42 @@ in
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
-    resources
-    vim
-    wget
-    git
+    # editors
     vscode
     antigravity
-    brave
+    vim
+
+    # languages and tools
     nodejs
-    fastfetch
+    python3
+    git
+    curl
+    wget
+
+    # browsers
+    brave
+
+    # user applications
+    discord
+    logseq
+    libreoffice
+    zathura
+    p7zip
+    # sddm and system-utilities
     custom-sddm-astronaut
     kdePackages.qtmultimedia
     bibata-cursors
+    fastfetch
+    resources
+    thunar
+    mpv
+    feh
+
   ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.max-jobs = "auto";
+  nix.settings.cores = 0;
 
   # --- System Optimizations ---
   # Hardlink identical files in the store to save disk space
