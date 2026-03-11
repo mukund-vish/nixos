@@ -14,10 +14,28 @@
 
   programs.bash.enable = true;
 
+  # ── Starship Prompt ───────────────────────────────────────────────────
+  programs.starship = {
+    enable = true;
+    enableBashIntegration = true;
+    settings = {
+      add_newline = false;
+    };
+  };
+
   home.sessionPath = [ "$HOME/.local/bin" ];
   home.sessionVariables = {
     XDG_CURRENT_DESKTOP = "Hyprland";
+    XDG_SESSION_TYPE = "wayland";
+    XDG_SESSION_DESKTOP = "Hyprland";
     XDG_ICON_THEME = "Papirus-Dark";
+    
+    # Optimize Electron/Chromium apps to use native Wayland
+    NIXOS_OZONE_WL = "1";
+    
+    # Fix sizing and scrolling for GTK/QT applications under Wayland
+    GDK_BACKEND = "wayland,x11";
+    QT_QPA_PLATFORM = "wayland;xcb";
   };
 
   home.packages = with pkgs; [
@@ -70,6 +88,15 @@ gtk4.extraConfig = {
   gtk-application-prefer-dark-theme = 1;
   gtk-decoration-layout = ":";
 };
+  };
+
+  # ── Pointer Cursor ────────────────────────────────────────────────────
+  home.pointerCursor = {
+    name = "Bibata-Modern-Classic";
+    package = pkgs.bibata-cursors;
+    size = 24;
+    gtk.enable = true;
+    x11.enable = true;
   };
 
   # ── dconf settings ────────────────────────────────────────────────────
@@ -708,6 +735,10 @@ gtk4.extraConfig = {
     .urgency-critical { border-left: 3px solid #f7768e; }
   '';
 
+  # Enforce rigorous memory control on SwayNC
+  systemd.user.services.swaync.Service.MemoryHigh = "50M";
+  systemd.user.services.swaync.Service.MemoryMax = "100M";
+
   # ── Waybar (top + bottom) ─────────────────────────────────────────────
   programs.waybar = {
     enable = true;
@@ -1158,9 +1189,7 @@ gtk4.extraConfig = {
           new_optimizations = true;
         };
         shadow = {
-          enabled = true;
-          range = 20;
-          color = "rgba(7aa2f722)";
+          enabled = false; # Shadows can cause unnecessary VRAM/RAM rendering overhead
         };
       };
 
@@ -1171,10 +1200,10 @@ gtk4.extraConfig = {
           "easeIn, 0.7, 0, 0.84, 0"
         ];
         animation = [
-          "windows, 1, 4, easeOut, popin 80%"
-          "windowsOut, 1, 3, easeIn, popin 80%"
-          "fade, 1, 4, easeOut"
-          "workspaces, 1, 4, easeOut, slide"
+          "windows, 1, 2, easeOut, popin 80%" # Reduced animation duration
+          "windowsOut, 1, 2, easeIn, popin 80%"
+          "fade, 1, 2, easeOut"
+          "workspaces, 1, 3, easeOut, slide"
         ];
       };
 

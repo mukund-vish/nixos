@@ -104,6 +104,24 @@ in
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
+  # --- System Optimizations ---
+  # Hardlink identical files in the store to save disk space
+  nix.settings.auto-optimise-store = true;
+  
+  # Automatically clean up old Nix generations weekly
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 7d";
+  };
+
+  # Maintain SSD performance
+  services.fstrim.enable = true;
+
+  # Compress RAM to swap, huge improvement for system responsiveness under load
+  zramSwap.enable = true;
+  # ----------------------------
+
   programs.hyprland = {
     enable = true;
     xwayland.enable = true;
