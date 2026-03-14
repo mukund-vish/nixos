@@ -125,6 +125,8 @@ security.pam.services.sddm.enableGnomeKeyring = true;
     feh
     kdePackages.polkit-kde-agent-1
     gnome-keyring
+    upower
+    power-profiles-daemon
 
   ];
 
@@ -178,6 +180,8 @@ systemd.user.timers.logseq-autopush = {
     Unit = "logseq-autopush.service";
   };
 };
+  services.upower.enable = true;
+  services.power-profiles-daemon.enable = true;
 
   system.stateVersion = "25.11";
 
