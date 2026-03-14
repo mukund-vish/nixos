@@ -3,14 +3,14 @@
   home.username = "mukund";
   home.homeDirectory = "/home/mukund";
 
-  programs.git = {
-    enable = true;
-    userName = "mukund-vish";
-    userEmail = "terryterros86@gmail.com";
-    settings = {
-      credential.helper = "store";
-    };
+ programs.git = {
+  enable = true;
+  settings = {
+    user.name = "mukund-vish";
+    user.email = "terryterros86@gmail.com";
+    credential.helper = "store";
   };
+};
 
   programs.bash.enable = true;
 
@@ -570,9 +570,9 @@ gtk4.extraConfig = {
     notification-body-image-height = 120;
     notification-body-image-width = 200;
 
-    timeout = 0.5;
-    timeout-low = 0.2;
-    timeout-critical = 1;
+    timeout = 2;
+    timeout-low = 2;
+    timeout-critical = 2;
 
     fit-to-screen = false;
     keyboard-shortcuts = true;
@@ -1109,6 +1109,12 @@ gtk4.extraConfig = {
         "swaync -s"
         "swayosd-server"
         "copyq --start-server"
+        "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
+        "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP"
+        "dbus-update-activation-environment --systemd --all"
+        "systemctl --user start plasma-polkit-agent"
+        "gnome-keyring-daemon --start --components=secrets &"
+        "logseq"
       ];
 
       "$mod" = "SUPER";
@@ -1124,6 +1130,10 @@ gtk4.extraConfig = {
         ", XF86AudioMute, exec, swayosd-client --output-volume mute-toggle"
         ", XF86MonBrightnessUp, exec, swayosd-client --brightness raise"
         ", XF86MonBrightnessDown, exec, swayosd-client --brightness lower"
+      ];
+
+      windowrule = [
+        "workspace special:magic, match:class Logseq"
       ];
 
       bind = [

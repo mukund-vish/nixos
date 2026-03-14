@@ -27,6 +27,11 @@ in
 
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
+  # Enable GNOME Keyring
+  services.gnome.gnome-keyring.enable = true;
+
+# Unlock keyring on SDDM login
+security.pam.services.sddm.enableGnomeKeyring = true;
 
   # Set your time zone.
   time.timeZone = "Asia/Kolkata";
@@ -118,6 +123,8 @@ in
     thunar
     mpv
     feh
+    kdePackages.polkit-kde-agent-1
+    gnome-keyring
 
   ];
 
@@ -153,6 +160,24 @@ in
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = true;
   services.blueman.enable = true;
+
+
+  systemd.user.services.logseq-autopush = {
+  description = "Logseq Git Auto Push";
+  serviceConfig = {
+    Type = "oneshot";
+    ExecStart = "${pkgs.git}/bin/git -C /home/mukund/Notes push origin main";
+  };
+};
+
+systemd.user.timers.logseq-autopush = {
+  wantedBy = [ "timers.target" ];
+  timerConfig = {
+    OnBootSec = "5m";
+    OnUnitActiveSec = "5m";
+    Unit = "logseq-autopush.service";
+  };
+};
 
   system.stateVersion = "25.11";
 
